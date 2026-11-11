@@ -34,8 +34,21 @@ CREATE TABLE IF NOT EXISTS public.produced_tracks (
     full_track_url   TEXT,
     vocals_url       TEXT,
     instrumental_url TEXT,
+    lyrics           TEXT,
+    bpm              INT,
+    musical_key      TEXT,
+    drums_url        TEXT,
+    bass_url         TEXT,
     created_at       TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Upgrade existing table if already created earlier
+ALTER TABLE public.produced_tracks ADD COLUMN IF NOT EXISTS lyrics TEXT;
+ALTER TABLE public.produced_tracks ADD COLUMN IF NOT EXISTS bpm INT;
+ALTER TABLE public.produced_tracks ADD COLUMN IF NOT EXISTS musical_key TEXT;
+ALTER TABLE public.produced_tracks ADD COLUMN IF NOT EXISTS drums_url TEXT;
+ALTER TABLE public.produced_tracks ADD COLUMN IF NOT EXISTS bass_url TEXT;
+
 
 COMMENT ON TABLE  public.produced_tracks                 IS 'Metadata for every AI-produced music track.';
 COMMENT ON COLUMN public.produced_tracks.id              IS 'Unique track identifier (UUID v4).';

@@ -92,7 +92,12 @@ audio {
   filter: invert(0);
 }
 
+[dir="rtl"] {
+  font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+}
+
 /* Selection color */
+
 ::selection {
   background-color: rgba(201, 168, 76, 0.3);
   color: #f0c040;
