@@ -101,8 +101,9 @@ function resolveEndpoint(path: string): string {
   const isLocalInsecure = backend.startsWith('http://localhost') || backend.startsWith('http://127.0.0.1')
 
   if (isHttps && isLocalInsecure) {
-    // If on HTTPS and backend is local HTTP, route through Next.js proxy route
-    return `/api/produce`
+    // If on HTTPS (Vercel) and backend is local HTTP, route through Next.js proxy route
+    const cleanPath = path.replace(/^\/+/, '')
+    return `/api/proxy/${cleanPath}`
   }
   return `${backend}${path}`
 }
@@ -150,8 +151,7 @@ export async function produceTrack(
  * Standalone AI Stem Separation
  */
 export async function separateStems(audioBlob: Blob): Promise<StemSeparationResult> {
-  const backend = getBackendUrl()
-  const endpoint = `${backend}/api/v1/studio/separate-stems`
+  const endpoint = resolveEndpoint('/api/v1/studio/separate-stems')
   const formData = new FormData()
   formData.append('audio', audioBlob, 'track_to_separate.mp3')
 
@@ -180,8 +180,7 @@ export async function transformVoice(
   modelName: string = 'Squidward',
   pitchChange: string = 'no-change',
 ): Promise<VoiceTransformResult> {
-  const backend = getBackendUrl()
-  const endpoint = `${backend}/api/v1/studio/voice-transform`
+  const endpoint = resolveEndpoint('/api/v1/studio/voice-transform')
   const formData = new FormData()
   formData.append('audio', audioBlob, 'vocal_source.wav')
   formData.append('model_name', modelName)
@@ -208,8 +207,7 @@ export async function transformVoice(
  * Fetch Cloud Studio History
  */
 export async function getTrackHistory(): Promise<TrackHistoryItem[]> {
-  const backend = getBackendUrl()
-  const endpoint = `${backend}/api/v1/studio/history`
+  const endpoint = resolveEndpoint('/api/v1/studio/history')
 
   try {
     const response = await fetch(endpoint, { method: 'GET' })
