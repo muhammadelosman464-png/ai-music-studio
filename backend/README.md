@@ -153,20 +153,12 @@ curl -X POST http://localhost:8000/api/v1/studio/produce \
 
 ---
 
-## Suno API Mock
+## Suno & Replicate API Integration
 
 > [!NOTE]
-> Suno does **not** currently publish an official public REST API.
-> [`app/services/suno_service.py`](app/services/suno_service.py) contains a
-> clean mock that targets the community proxy at
-> `https://api.sunoapi.org/api/v1/generate`.
+> All AI requests (melody generation, voice conversion, stem separation) are directly wired to the provider APIs using your environment variables (`SUNO_API_KEY`, `REPLICATE_API_TOKEN`).
 >
-> **If the call fails** (expected during development), the service automatically
-> returns a static sample MP3 (`soundhelix.com`) so the rest of the pipeline
-> (stem separation, storage upload, database save) can be exercised end-to-end.
->
-> When an official Suno API becomes available, update `SUNO_API_ENDPOINT` and
-> the response-parsing logic in `suno_service.py` and remove the fallback block.
+> If any external API fails or encounters an invalid token, the server returns a descriptive HTTP 500 error (`Suno API Error` or `Replicate API Error`) with the exact provider response, rather than returning fake tracks.
 
 ---
 

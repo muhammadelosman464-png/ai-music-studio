@@ -9,8 +9,6 @@ logger = logging.getLogger(__name__)
 SUNO_API_ENDPOINT = "https://api.sunoapi.org/api/v1/generate"
 SUNO_MODEL_VERSION = "chirp-v3-5"
 
-MOCK_FALLBACK_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-
 
 async def generate_melody(
     audio_url: str,
@@ -22,20 +20,18 @@ async def generate_melody(
     mastered: bool = True,
 ) -> str:
     """
-    Call the Suno unofficial API or MusicGen pipeline to generate a melody
-    conditioned on input audio, musical style, detected tempo/key, and custom lyrics.
+    Call the Suno generation API passing the user's exact musical style prompt,
+    input audio reference, and optional lyrics.
+    Raises HTTPException(500) if the API fails, never returning fake fallback audio.
     """
-    # Build enriched production prompt
-    prompt_parts = [prompt.strip()]
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="Suno API Error: SUNO_API_KEY is not configured in backend/.env",
+        )
 
-    if bpm:
-        prompt_parts.append(f"Tempo: {bpm} BPM")
-    if musical_key:
-        prompt_parts.append(f"Scale: {musical_key}")
-    if mastered:
-        prompt_parts.append("Studio Mastered, Pristine Stereo Width, Multiband Compression, Analog Warmth, -14 LUFS")
-
-    final_prompt = " • ".join(prompt_parts)
+    # Ensure user's exact style prompt is passed directly without being overwritten or ignored
+    user_style_prompt = prompt.strip() if prompt else "Modern Arabic Pop"
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -43,33 +39,66 @@ async def generate_melody(
     }
 
     payload = {
-        "prompt": final_prompt,
+        "prompt": user_style_prompt,
         "mv": SUNO_MODEL_VERSION,
         "input_audio": audio_url,
         "make_instrumental": False if lyrics else True,
         "lyrics": lyrics or "",
     }
 
-    logger.info("Calling Suno API with enriched prompt: %s (has_lyrics=%s)", final_prompt, bool(lyrics))
+    logger.info("Calling Suno API with user style prompt: '%s' (input_audio=%s)", user_style_prompt, audio_url)
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(SUNO_API_ENDPOINT, headers=headers, json=payload)
-            response.raise_for_status()
+    except httpx.TimeoutException:
+        logger.error("Suno API timed out after 120 seconds.")
+        raise HTTPException(
+            status_code=500,
+            detail="Suno API Error: Generation timed out after 120 seconds.",
+        )
+    except Exception as exc:
+        logger.error("Suno API network request failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Suno API Error (Connection): {str(exc)}",
+        )
 
+    # Check HTTP status
+    if response.status_code != 200:
+        logger.error("Suno API responded with HTTP %d: %s", response.status_code, response.text)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Suno API Error (HTTP {response.status_code}): {response.text}",
+        )
+
+    try:
         data = response.json()
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Suno API Error: Invalid non-JSON response from server: {response.text[:200]}",
+        )
+
+    # Check for provider-level error codes inside JSON payload (e.g. {"code": 401, "msg": "Unauthorized"})
+    if isinstance(data, dict):
+        code = data.get("code")
+        if code and code != 200:
+            error_msg = data.get("msg") or data.get("message") or str(data)
+            logger.error("Suno API returned error payload: %s", data)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Suno API Error ({code}): {error_msg}",
+            )
+
         clips = data.get("clips") or data.get("data") or []
-        if clips:
-            song_url: str = clips[0].get("audio_url") or clips[0].get("url", "")
+        if isinstance(clips, list) and clips:
+            song_url: str = clips[0].get("audio_url") or clips[0].get("url") or ""
             if song_url:
-                logger.info("Suno generation succeeded. URL: %s", song_url)
+                logger.info("Suno generation succeeded. Audio URL: %s", song_url)
                 return song_url
 
-        raise ValueError(f"Unexpected Suno API response structure: {data}")
-
-    except Exception as exc:
-        logger.warning(
-            "Suno API call returned (%s). Returning high-quality production fallback.",
-            exc,
-        )
-        return MOCK_FALLBACK_URL
+    raise HTTPException(
+        status_code=500,
+        detail=f"Suno API Error: No audio clips returned in response: {data}",
+    )

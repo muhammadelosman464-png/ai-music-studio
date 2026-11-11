@@ -79,51 +79,38 @@ async def produce_track(
         detected_key = "D Minor / مقام نهاوند"
 
     # 2. Upload raw audio to Supabase
-    try:
-        raw_path = f"raw/{track_id}/{filename}"
-        raw_audio_url = await storage_service.upload_audio(
-            bucket=RAW_AUDIO_BUCKET,
-            path=raw_path,
-            data=audio_bytes,
-            content_type=content_type,
-        )
-    except Exception as exc:
-        logger.exception("Raw audio upload failed: %s", exc)
-        raw_audio_url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    raw_path = f"raw/{track_id}/{filename}"
+    raw_audio_url = await storage_service.upload_audio(
+        bucket=RAW_AUDIO_BUCKET,
+        path=raw_path,
+        data=audio_bytes,
+        content_type=content_type,
+    )
 
     # 3. Concurrent generation: Melody + Voice Transformation
-    try:
-        logger.info("Running Suno melody generation & RVC voice transformation concurrently...")
-        generated_song_url, transformed_voice_url = await asyncio.gather(
-            suno_service.generate_melody(
-                audio_url=raw_audio_url,
-                prompt=prompt,
-                api_key=settings.SUNO_API_KEY,
-                lyrics=lyrics,
-                bpm=detected_bpm,
-                musical_key=detected_key,
-                mastered=mastering,
-            ),
-            replicate_service.transform_voice_rvc(
-                audio_url=raw_audio_url,
-                api_token=settings.REPLICATE_API_TOKEN,
-                rvc_model=voice_model or "Squidward",
-            ),
-        )
-    except Exception as exc:
-        logger.exception("Melody generation / voice conversion failed: %s", exc)
-        generated_song_url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-        transformed_voice_url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+    logger.info("Running Suno melody generation & RVC voice transformation concurrently...")
+    generated_song_url, transformed_voice_url = await asyncio.gather(
+        suno_service.generate_melody(
+            audio_url=raw_audio_url,
+            prompt=prompt,
+            api_key=settings.SUNO_API_KEY,
+            lyrics=lyrics,
+            bpm=detected_bpm,
+            musical_key=detected_key,
+            mastered=mastering,
+        ),
+        replicate_service.transform_voice_rvc(
+            audio_url=raw_audio_url,
+            api_token=settings.REPLICATE_API_TOKEN,
+            rvc_model=voice_model or "Squidward",
+        ),
+    )
 
     # 4. Meta HTDemucs 4-stem separation
-    try:
-        logger.info("Separating stems via Meta HTDemucs...")
-        stems: dict = await replicate_service.separate_stems_htdemucs(
-            generated_song_url, settings.REPLICATE_API_TOKEN
-        )
-    except Exception as exc:
-        logger.exception("Stem separation failed: %s", exc)
-        stems = {}
+    logger.info("Separating stems via Meta HTDemucs...")
+    stems: dict = await replicate_service.separate_stems_htdemucs(
+        generated_song_url, settings.REPLICATE_API_TOKEN
+    )
 
     final_vocals_url = stems.get("vocals", transformed_voice_url)
     instrumental_url = stems.get("other", generated_song_url)
@@ -223,13 +210,24 @@ async def separate_stems_endpoint(
         uploaded_url, settings.REPLICATE_API_TOKEN
     )
 
+    vocals_url = stems.get("vocals")
+    drums_url = stems.get("drums")
+    bass_url = stems.get("bass")
+    other_url = stems.get("other")
+
+    if not vocals_url:
+        raise HTTPException(
+            status_code=500,
+            detail="Replicate API Error: Stem separation did not produce valid vocal output.",
+        )
+
     return StemSeparationResponse(
         job_id=job_id,
         original_url=uploaded_url,
-        vocals_url=stems.get("vocals", "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"),
-        drums_url=stems.get("drums", "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"),
-        bass_url=stems.get("bass", "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"),
-        other_url=stems.get("other", "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"),
+        vocals_url=vocals_url,
+        drums_url=drums_url or vocals_url,
+        bass_url=bass_url or vocals_url,
+        other_url=other_url or vocals_url,
         created_at=datetime.now(tz=timezone.utc).isoformat(),
     )
 

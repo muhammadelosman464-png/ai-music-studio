@@ -3,6 +3,7 @@ import logging
 import os
 from typing import Dict, Any
 
+from fastapi import HTTPException
 import replicate
 
 logger = logging.getLogger(__name__)
@@ -17,22 +18,18 @@ async def transform_voice_rvc(
     """
     Transform raw vocals using an RVC (Retrieval-based Voice Conversion) model
     hosted on Replicate.
-
-    Args:
-        audio_url: Publicly accessible URL of the vocal audio.
-        api_token: Replicate API token (from REPLICATE_API_TOKEN in .env).
-        rvc_model: Target RVC voice character / model preset.
-        pitch_change: Pitch adjustment ('no-change', 'male-to-female', '+12', '-12').
-
-    Returns:
-        URL (str) of the voice-converted MP3 file on Replicate's CDN.
+    Raises HTTPException(500) if Replicate fails or token is invalid.
     """
-    if api_token:
-        os.environ["REPLICATE_API_TOKEN"] = api_token
+    if not api_token:
+        raise HTTPException(
+            status_code=500,
+            detail="Replicate API Error: REPLICATE_API_TOKEN is not configured in backend/.env",
+        )
+
+    os.environ["REPLICATE_API_TOKEN"] = api_token
 
     logger.info("Starting RVC voice transformation for audio: %s (model=%s, pitch=%s)", audio_url, rvc_model, pitch_change)
 
-    # replicate.run is synchronous; run it in a thread-pool to avoid blocking
     loop = asyncio.get_event_loop()
     try:
         output = await loop.run_in_executor(
@@ -63,19 +60,26 @@ async def transform_voice_rvc(
         logger.info("RVC voice transformation complete. Output URL: %s", result_url)
         return result_url
     except Exception as exc:
-        logger.warning("Replicate RVC call failed (%s). Returning fallback audio.", exc)
-        return "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+        logger.error("Replicate RVC call failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Replicate API Error (Voice Transformation): {str(exc)}",
+        )
 
 
 async def separate_stems_htdemucs(audio_url: str, api_token: str) -> dict:
     """
     Separate an audio track into 4 individual stems using Meta's HTDemucs model
     on Replicate.
-
-    Stems produced: vocals, drums, bass, other (melodic/instruments).
+    Raises HTTPException(500) if Replicate fails or token is invalid.
     """
-    if api_token:
-        os.environ["REPLICATE_API_TOKEN"] = api_token
+    if not api_token:
+        raise HTTPException(
+            status_code=500,
+            detail="Replicate API Error: REPLICATE_API_TOKEN is not configured in backend/.env",
+        )
+
+    os.environ["REPLICATE_API_TOKEN"] = api_token
 
     logger.info("Starting HTDemucs stem separation for audio: %s", audio_url)
 
@@ -88,7 +92,7 @@ async def separate_stems_htdemucs(audio_url: str, api_token: str) -> dict:
                 input={
                     "audio": audio_url,
                     "model": "htdemucs",
-                    "stem": None,       # separate all 4 stems
+                    "stem": None,
                     "clip_mode": "rescale",
                     "shifts": 1,
                     "overlap": 0.25,
@@ -99,21 +103,13 @@ async def separate_stems_htdemucs(audio_url: str, api_token: str) -> dict:
                 },
             ),
         )
-        logger.info("HTDemucs stem separation complete. Stems: %s", list(output.keys()) if isinstance(output, dict) else output)
         if isinstance(output, dict):
+            logger.info("HTDemucs stem separation complete. Stems: %s", list(output.keys()))
             return output
-        # If output is list or other structure, normalize
-        return {
-            "vocals": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-            "drums": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-            "bass": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-            "other": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-        }
+        raise ValueError(f"Unexpected Replicate output format: {output}")
     except Exception as exc:
-        logger.warning("Replicate Demucs call failed (%s). Returning fallback stem URLs.", exc)
-        return {
-            "vocals": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-            "drums": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-            "bass": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-            "other": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-        }
+        logger.error("Replicate Demucs call failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Replicate API Error (Stem Separation): {str(exc)}",
+        )

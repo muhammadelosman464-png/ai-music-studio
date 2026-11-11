@@ -20,8 +20,13 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errText = await response.text()
+      let parsedDetail = errText
+      try {
+        const json = JSON.parse(errText)
+        parsedDetail = json.detail || json.message || errText
+      } catch {}
       return NextResponse.json(
-        { detail: `Backend error (${response.status}): ${errText}` },
+        { detail: parsedDetail },
         { status: response.status }
       )
     }

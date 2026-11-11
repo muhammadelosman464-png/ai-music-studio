@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, ChangeEvent, DragEvent } from 'react'
+import { useState, useRef, useEffect, ChangeEvent, DragEvent } from 'react'
 import { Mic, Upload, Play, Pause, Trash2, Check, Music2, FileAudio } from 'lucide-react'
 import clsx from 'clsx'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
@@ -41,16 +41,23 @@ export default function AudioSourceSelector({
     error: micError,
   } = useAudioRecorder()
 
+  // Synchronize audio blob with parent whenever mode, micBlob, or uploadedBlob changes
+  useEffect(() => {
+    if (mode === 'mic') {
+      onAudioReady(micBlob)
+    } else {
+      onAudioReady(uploadedBlob)
+    }
+  }, [mode, micBlob, uploadedBlob, onAudioReady])
+
+  const handleStartMic = async () => {
+    onAudioReady(null)
+    await startRecording()
+  }
+
   // Handle mic stop
   const handleStopMic = () => {
     stopRecording()
-  }
-
-  // Effect when mic records a blob
-  const handleUseMic = () => {
-    if (micBlob) {
-      onAudioReady(micBlob)
-    }
   }
 
   // Handle file upload
@@ -61,7 +68,6 @@ export default function AudioSourceSelector({
     setUploadedBlob(blob)
     setUploadedUrl(url)
     setUploadedFileName(file.name)
-    onAudioReady(blob)
   }
 
   const onFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -176,7 +182,7 @@ export default function AudioSourceSelector({
             {!isRecording && !micUrl && (
               <button
                 type="button"
-                onClick={startRecording}
+                onClick={handleStartMic}
                 disabled={disabled}
                 className="flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-gold-dark via-gold to-gold-light text-black font-bold text-sm shadow-xl shadow-gold/20 hover:scale-105 active:scale-95 transition-all"
               >
@@ -202,7 +208,6 @@ export default function AudioSourceSelector({
                   src={micUrl}
                   controls
                   className="h-10 rounded-xl bg-white/5 border border-white/10"
-                  onPlay={() => onAudioReady(micBlob)}
                 />
                 <button
                   type="button"
