@@ -20,6 +20,8 @@ services:
         sync: false
       - key: SUNO_API_KEY
         sync: false
+      - key: SUNO_API_ENDPOINT
+        value: https://api.sunoapi.org/api/v1/generate
       - key: SECONDARY_AI_KEY
         sync: false
       - key: FRONTEND_URL

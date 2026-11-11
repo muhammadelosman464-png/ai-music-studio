@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     REPLICATE_API_TOKEN: str = ""
     SUNO_API_KEY: str = ""
+    SUNO_API_ENDPOINT: str = "https://api.sunoapi.org/api/v1/generate"
     SECONDARY_AI_KEY: str = ""
     FRONTEND_URL: str = "*"
     PORT: int = int(os.environ.get("PORT", "8000"))
