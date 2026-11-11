@@ -22,16 +22,12 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# CORS
+# CORS - Robust universal access for local and production frontends
 # ---------------------------------------------------------------------------
-cors_origins = [settings.FRONTEND_URL, "http://localhost:3000"]
-if "*" not in cors_origins:
-    cors_origins.append("*")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

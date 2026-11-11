@@ -32,6 +32,7 @@ router = APIRouter()
 
 RAW_AUDIO_BUCKET = "studio-raw-audio"
 MASTER_TRACKS_BUCKET = "studio-master-tracks"
+MAX_AUDIO_BYTES = 50 * 1024 * 1024  # 50 MB limit
 
 
 # ---------------------------------------------------------------------------
@@ -61,11 +62,16 @@ async def produce_track(
     logger.info("=== Starting V2 Production Pipeline [track_id=%s] ===", track_id)
 
     # 1. Read bytes and perform acoustic analysis
-    try:
-        audio_bytes = await audio.read()
-        content_type = audio.content_type or "audio/mpeg"
-        filename = audio.filename or "audio_input.mp3"
+    audio_bytes = await audio.read()
+    if len(audio_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded audio file is empty. Please provide a valid recording or audio file.")
+    if len(audio_bytes) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="File too large. Maximum supported audio size is 50MB.")
 
+    content_type = audio.content_type or "audio/mpeg"
+    filename = audio.filename or "audio_input.mp3"
+
+    try:
         analysis = audio_analyzer.analyze_audio_properties(
             audio_bytes=audio_bytes,
             filename=filename,
@@ -162,6 +168,10 @@ async def upload_audio_file(
     """Upload any audio file directly to Supabase storage."""
     file_id = str(uuid.uuid4())
     audio_bytes = await audio.read()
+    if len(audio_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded audio file is empty.")
+    if len(audio_bytes) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="File too large. Maximum supported audio size is 50MB.")
     content_type = audio.content_type or "audio/mpeg"
     filename = audio.filename or "audio_file.mp3"
     storage_path = f"uploads/{file_id}/{filename}"
@@ -194,6 +204,10 @@ async def separate_stems_endpoint(
     """
     job_id = str(uuid.uuid4())
     audio_bytes = await audio.read()
+    if len(audio_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded audio file is empty.")
+    if len(audio_bytes) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="File too large. Maximum supported audio size is 50MB.")
     filename = audio.filename or "song_to_separate.mp3"
     content_type = audio.content_type or "audio/mpeg"
 
@@ -244,6 +258,10 @@ async def voice_transform_endpoint(
     """Dedicated Voice-to-Voice AI transformation using Replicate RVC."""
     job_id = str(uuid.uuid4())
     audio_bytes = await audio.read()
+    if len(audio_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded audio file is empty.")
+    if len(audio_bytes) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="File too large. Maximum supported audio size is 50MB.")
     filename = audio.filename or "raw_vocal.mp3"
     content_type = audio.content_type or "audio/mpeg"
 
