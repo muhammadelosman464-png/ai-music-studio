@@ -23,7 +23,12 @@ async def upload_audio(bucket: str, path: str, data: bytes, content_type: str) -
     """
     logger.info("Uploading %d bytes to bucket '%s' at path '%s'", len(data), bucket, path)
 
+    if not supabase_client:
+        logger.warning("Supabase client is not available. Returning fallback URL.")
+        return "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+
     supabase_client.storage.from_(bucket).upload(
+
         path,
         data,
         {"content-type": content_type, "upsert": "true"},

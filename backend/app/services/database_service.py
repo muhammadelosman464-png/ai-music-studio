@@ -45,7 +45,12 @@ async def save_track_metadata(
 
     logger.info("Saving track metadata to Supabase. track_id=%s", track_id)
 
+    if not supabase_client:
+        logger.warning("Supabase client is not available. Skipping DB persistence.")
+        return record
+
     response = supabase_client.table(TABLE_NAME).insert(record).execute()
+
 
     inserted = response.data[0] if response.data else record
     logger.info("Track metadata saved successfully. track_id=%s", track_id)

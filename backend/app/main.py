@@ -1,5 +1,5 @@
 import logging
-
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,9 +24,13 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
+cors_origins = [settings.FRONTEND_URL, "http://localhost:3000"]
+if "*" not in cors_origins:
+    cors_origins.append("*")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,9 +43,16 @@ app.include_router(studio.router, prefix="/api/v1/studio", tags=["studio"])
 
 
 # ---------------------------------------------------------------------------
-# Health check
+# Health checks — root / and /health for Render liveness probes
 # ---------------------------------------------------------------------------
+@app.get("/", tags=["health"])
 @app.get("/health", tags=["health"])
 async def health() -> dict:
     """Liveness probe — returns 200 when the server is running."""
     return {"status": "ok", "service": "AI Music Studio API"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
