@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Music, Sparkles, AlertCircle, RotateCcw } from 'lucide-react'
+import { Music, Sparkles, AlertCircle, RotateCcw, Server, Check, X, ExternalLink } from 'lucide-react'
 import clsx from 'clsx'
 import AudioRecorder from './AudioRecorder'
 import PromptInput from './PromptInput'
 import ProductionStepper from './ProductionStepper'
 import ResultPlayer from './ResultPlayer'
-import { produceTrack, TrackResult } from '@/lib/api'
+import { produceTrack, TrackResult, getBackendUrl, setBackendUrl, testBackendConnection } from '@/lib/api'
 
 type StudioState = 'idle' | 'recording' | 'processing' | 'done' | 'error'
 
@@ -18,6 +18,36 @@ export default function StudioPage() {
   const [currentStep, setCurrentStep] = useState(0)
   const [result, setResult] = useState<TrackResult | null>(null)
   const [errorMessage, setErrorMessage] = useState<string>('')
+
+  // Backend settings modal
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [backendUrlInput, setBackendUrlInput] = useState('')
+  const [connStatus, setConnStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
+  const [connMessage, setConnMessage] = useState('')
+
+  useEffect(() => {
+    setBackendUrlInput(getBackendUrl())
+  }, [])
+
+  const handleTestConnection = async () => {
+    setConnStatus('testing')
+    setConnMessage('Testing connection to backend...')
+    const res = await testBackendConnection(backendUrlInput)
+    if (res.ok) {
+      setConnStatus('success')
+      setConnMessage(res.message)
+      setBackendUrl(backendUrlInput)
+    } else {
+      setConnStatus('error')
+      setConnMessage(res.message)
+    }
+  }
+
+  const handleSaveBackendUrl = () => {
+    setBackendUrl(backendUrlInput)
+    setIsSettingsOpen(false)
+  }
+
 
   // Simulate step progression during processing
   useEffect(() => {
@@ -91,35 +121,120 @@ export default function StudioPage() {
             </div>
           </div>
 
-          {/* Status badge */}
-          <div
-            className={clsx(
-              'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border',
-              state === 'idle' && 'bg-white/5 border-white/10 text-white/40',
-              state === 'recording' && 'bg-red-500/10 border-red-500/30 text-red-400',
-              state === 'processing' && 'bg-gold/10 border-gold/30 text-gold',
-              state === 'done' && 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
-              state === 'error' && 'bg-red-500/10 border-red-500/30 text-red-400',
-            )}
-          >
-            <span
+          <div className="flex items-center gap-3">
+            {/* Backend URL Settings button */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-white/10 bg-white/5 hover:bg-gold/10 hover:border-gold/30 text-white/60 hover:text-gold transition-all"
+              title="Configure Backend API URL"
+            >
+              <Server className="w-3.5 h-3.5" />
+              <span>Backend</span>
+            </button>
+
+            {/* Status badge */}
+            <div
               className={clsx(
-                'w-1.5 h-1.5 rounded-full',
-                state === 'idle' && 'bg-white/30',
-                state === 'recording' && 'bg-red-400 animate-pulse',
-                state === 'processing' && 'bg-gold animate-pulse',
-                state === 'done' && 'bg-emerald-400',
-                state === 'error' && 'bg-red-400',
+                'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border',
+                state === 'idle' && 'bg-white/5 border-white/10 text-white/40',
+                state === 'recording' && 'bg-red-500/10 border-red-500/30 text-red-400',
+                state === 'processing' && 'bg-gold/10 border-gold/30 text-gold',
+                state === 'done' && 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+                state === 'error' && 'bg-red-500/10 border-red-500/30 text-red-400',
               )}
-            />
-            {state === 'idle' && 'Ready'}
-            {state === 'recording' && 'Recording'}
-            {state === 'processing' && 'Producing'}
-            {state === 'done' && 'Complete'}
-            {state === 'error' && 'Error'}
+            >
+              <span
+                className={clsx(
+                  'w-1.5 h-1.5 rounded-full',
+                  state === 'idle' && 'bg-white/30',
+                  state === 'recording' && 'bg-red-400 animate-pulse',
+                  state === 'processing' && 'bg-gold animate-pulse',
+                  state === 'done' && 'bg-emerald-400',
+                  state === 'error' && 'bg-red-400',
+                )}
+              />
+              {state === 'idle' && 'Ready'}
+              {state === 'recording' && 'Recording'}
+              {state === 'processing' && 'Producing'}
+              {state === 'done' && 'Complete'}
+              {state === 'error' && 'Error'}
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Backend Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-md p-6 rounded-2xl bg-[#121212] border border-gold/30 shadow-2xl shadow-gold/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-gold">
+                <Server className="w-5 h-5" />
+                <h3 className="font-bold text-base text-white">Backend Connection</h3>
+              </div>
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-white/60 mb-4">
+              Enter your live <strong>Render</strong> Python backend URL (e.g. <code className="text-gold">https://ai-music-studio-backend.onrender.com</code>) or keep local.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1">
+                  API Endpoint URL:
+                </label>
+                <input
+                  type="text"
+                  value={backendUrlInput}
+                  onChange={(e) => setBackendUrlInput(e.target.value)}
+                  placeholder="https://your-service.onrender.com"
+                  className="w-full px-3 py-2 text-sm bg-black/50 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-gold"
+                />
+              </div>
+
+              {connMessage && (
+                <div
+                  className={clsx(
+                    'p-2.5 rounded-xl text-xs flex items-center gap-2',
+                    connStatus === 'success' && 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400',
+                    connStatus === 'error' && 'bg-red-500/10 border border-red-500/30 text-red-400',
+                    connStatus === 'testing' && 'bg-gold/10 border border-gold/30 text-gold'
+                  )}
+                >
+                  {connStatus === 'success' && <Check className="w-4 h-4 shrink-0" />}
+                  {connStatus === 'error' && <AlertCircle className="w-4 h-4 shrink-0" />}
+                  <span>{connMessage}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestConnection}
+                  disabled={connStatus === 'testing'}
+                  className="px-3 py-2 text-xs font-semibold rounded-xl border border-white/10 hover:border-gold/40 text-white/80 hover:text-gold transition-colors"
+                >
+                  {connStatus === 'testing' ? 'Testing...' : 'Test Connection'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveBackendUrl}
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-gold-dark to-gold text-black hover:opacity-90 transition-opacity"
+                >
+                  Save URL
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Hero section */}
       <section className="max-w-5xl mx-auto px-6 pt-16 pb-10 text-center">
