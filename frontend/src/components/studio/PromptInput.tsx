@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Sliders, AlignLeft, ChevronDown, ChevronUp, Mic2, Compass } from 'lucide-react'
+import { Sparkles, Sliders, AlignLeft, ChevronDown, ChevronUp, Mic2, Compass, Tag, DollarSign } from 'lucide-react'
 import clsx from 'clsx'
 import { Locale, translations } from '@/lib/translations'
 
@@ -10,6 +10,8 @@ interface PromptInputProps {
   onChange: (v: string) => void
   lyrics: string
   onLyricsChange: (lyrics: string) => void
+  priceTag: string
+  onPriceTagChange: (price: string) => void
   mastering: boolean
   onMasteringChange: (enabled: boolean) => void
   voiceModel: string
@@ -23,6 +25,8 @@ export default function PromptInput({
   onChange,
   lyrics,
   onLyricsChange,
+  priceTag,
+  onPriceTagChange,
   mastering,
   onMasteringChange,
   voiceModel,
@@ -32,6 +36,7 @@ export default function PromptInput({
 }: PromptInputProps) {
   const t = translations[locale]
   const [showLyrics, setShowLyrics] = useState(false)
+  const [showPricing, setShowPricing] = useState(true)
 
   // Curated Oriental & Global Presets with acoustic descriptions
   const ORIENTAL_PRESETS = [
@@ -179,6 +184,68 @@ export default function PromptInput({
               placeholder={t.lyricsPlaceholder}
               className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-gold/60 focus:border-gold"
             />
+          </div>
+        )}
+      </div>
+
+      {/* 3. Track Pricing & Commercial License Box (كلمات وتفاصيل السعر الخاصة بي) */}
+      <div className="pt-2 border-t border-white/5">
+        <button
+          type="button"
+          onClick={() => setShowPricing(!showPricing)}
+          className="w-full flex items-center justify-between text-start text-xs font-semibold text-white/80 hover:text-gold py-1 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-gold" />
+            <span className="font-bold text-gold-light">{t.pricingTitle}</span>
+            {priceTag.trim() && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-gold/20 text-gold font-bold truncate max-w-[150px]">
+                {priceTag}
+              </span>
+            )}
+          </div>
+          {showPricing ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
+        {showPricing && (
+          <div className="mt-3 space-y-3 p-4 rounded-2xl bg-black/30 border border-gold/20 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-white/50">{t.pricingSubtitle}</p>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold border border-gold/30 font-bold">
+                {t.priceTagLabel}
+              </span>
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                value={priceTag}
+                onChange={(e) => onPriceTagChange(e.target.value)}
+                disabled={disabled}
+                placeholder={t.pricingPlaceholder}
+                className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-gold font-medium placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-gold/60 focus:border-gold"
+              />
+            </div>
+
+            {/* Quick Price Suggestions */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[
+                t.pricingPreset1,
+                t.pricingPreset2,
+                t.pricingPreset3,
+                t.pricingPreset4,
+              ].map((p, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => onPriceTagChange(p)}
+                  disabled={disabled}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/5 hover:bg-gold/20 border border-white/10 hover:border-gold/40 text-white/70 hover:text-gold transition-all"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

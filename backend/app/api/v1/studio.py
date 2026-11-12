@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 import httpx
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import Response, StreamingResponse
 
 from app.core.config import settings
@@ -43,8 +43,11 @@ async def produce_track(
     audio: UploadFile = File(..., description="Raw audio recording or file upload"),
     prompt: str = Form(..., description="Style / mood description"),
     lyrics: Optional[str] = Form(None, description="Custom song lyrics"),
+    price_tag: Optional[str] = Form(None, description="Custom track pricing and commercial licensing text"),
     mastering: bool = Form(True, description="Enable AI audio mastering filter"),
     voice_model: Optional[str] = Form("Squidward", description="Target RVC voice preset"),
+    x_suno_key: Optional[str] = Header(None, alias="X-Suno-Key"),
+    x_replicate_token: Optional[str] = Header(None, alias="X-Replicate-Token"),
 ) -> ProduceResponse:
     """
     V2 AI Music Production Pipeline:
@@ -95,11 +98,14 @@ async def produce_track(
 
     # 3. Concurrent generation: Melody + Voice Transformation
     logger.info("Running Suno melody generation & RVC voice transformation concurrently...")
+    effective_suno_key = x_suno_key or settings.SUNO_API_KEY
+    effective_replicate_token = x_replicate_token or settings.REPLICATE_API_TOKEN
+
     generated_song_url, transformed_voice_url = await asyncio.gather(
         suno_service.generate_melody(
             audio_url=raw_audio_url,
             prompt=prompt,
-            api_key=settings.SUNO_API_KEY,
+            api_key=effective_suno_key,
             lyrics=lyrics,
             bpm=detected_bpm,
             musical_key=detected_key,
@@ -107,7 +113,7 @@ async def produce_track(
         ),
         replicate_service.transform_voice_rvc(
             audio_url=raw_audio_url,
-            api_token=settings.REPLICATE_API_TOKEN,
+            api_token=effective_replicate_token,
             rvc_model=voice_model or "Squidward",
         ),
     )
@@ -115,7 +121,7 @@ async def produce_track(
     # 4. Meta HTDemucs 4-stem separation
     logger.info("Separating stems via Meta HTDemucs...")
     stems: dict = await replicate_service.separate_stems_htdemucs(
-        generated_song_url, settings.REPLICATE_API_TOKEN
+        generated_song_url, effective_replicate_token
     )
 
     final_vocals_url = stems.get("vocals", transformed_voice_url)
@@ -134,6 +140,7 @@ async def produce_track(
             vocals_url=final_vocals_url,
             instrumental_url=instrumental_url,
             lyrics=lyrics,
+            price_tag=price_tag,
             bpm=detected_bpm,
             musical_key=detected_key,
             drums_url=drums_url,
@@ -151,6 +158,7 @@ async def produce_track(
         bass_url=bass_url or None,
         prompt=prompt,
         lyrics=lyrics,
+        price_tag=price_tag,
         bpm=detected_bpm,
         musical_key=detected_key,
         mastered=mastering,
@@ -197,6 +205,7 @@ async def upload_audio_file(
 @router.post("/separate-stems", response_model=StemSeparationResponse)
 async def separate_stems_endpoint(
     audio: UploadFile = File(..., description="Song or mix to separate into 4 stems"),
+    x_replicate_token: Optional[str] = Header(None, alias="X-Replicate-Token"),
 ) -> StemSeparationResponse:
     """
     Dedicated AI Stem Separator using Meta's HTDemucs:
@@ -220,8 +229,9 @@ async def separate_stems_endpoint(
         content_type=content_type,
     )
 
+    effective_token = x_replicate_token or settings.REPLICATE_API_TOKEN
     stems = await replicate_service.separate_stems_htdemucs(
-        uploaded_url, settings.REPLICATE_API_TOKEN
+        uploaded_url, effective_token
     )
 
     vocals_url = stems.get("vocals")
@@ -254,6 +264,7 @@ async def voice_transform_endpoint(
     audio: UploadFile = File(..., description="Vocal recording to transform"),
     model_name: str = Form("Squidward", description="Target RVC voice preset"),
     pitch_change: str = Form("no-change", description="Pitch adjustment"),
+    x_replicate_token: Optional[str] = Header(None, alias="X-Replicate-Token"),
 ) -> VoiceTransformResponse:
     """Dedicated Voice-to-Voice AI transformation using Replicate RVC."""
     job_id = str(uuid.uuid4())
@@ -273,9 +284,10 @@ async def voice_transform_endpoint(
         content_type=content_type,
     )
 
+    effective_token = x_replicate_token or settings.REPLICATE_API_TOKEN
     transformed_url = await replicate_service.transform_voice_rvc(
         audio_url=uploaded_url,
-        api_token=settings.REPLICATE_API_TOKEN,
+        api_token=effective_token,
         rvc_model=model_name,
         pitch_change=pitch_change,
     )
@@ -305,6 +317,7 @@ async def get_studio_history(limit: int = 20) -> List[TrackHistoryItem]:
                 id=str(r.get("id", "")),
                 prompt=r.get("prompt", ""),
                 lyrics=r.get("lyrics"),
+                price_tag=r.get("price_tag"),
                 raw_audio_url=r.get("raw_audio_url"),
                 full_track_url=r.get("full_track_url"),
                 vocals_url=r.get("vocals_url"),

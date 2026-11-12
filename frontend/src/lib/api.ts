@@ -11,6 +11,7 @@ export type TrackResult = {
   musical_key?: string | null
   prompt?: string
   lyrics?: string | null
+  price_tag?: string | null
   mastered?: boolean
   created_at?: string
 }
@@ -117,6 +118,7 @@ export async function produceTrack(
   lyrics?: string,
   mastering: boolean = true,
   voiceModel: string = 'Squidward',
+  priceTag?: string,
 ): Promise<TrackResult> {
   const endpoint = resolveEndpoint('/api/v1/studio/produce')
   const formData = new FormData()
@@ -125,11 +127,23 @@ export async function produceTrack(
   if (lyrics && lyrics.trim()) {
     formData.append('lyrics', lyrics.trim())
   }
+  if (priceTag && priceTag.trim()) {
+    formData.append('price_tag', priceTag.trim())
+  }
   formData.append('mastering', String(mastering))
   formData.append('voice_model', voiceModel)
 
+  const headers: Record<string, string> = {}
+  if (typeof window !== 'undefined') {
+    const customSuno = localStorage.getItem('studio_suno_key')
+    const customReplicate = localStorage.getItem('studio_replicate_token')
+    if (customSuno && customSuno.trim()) headers['X-Suno-Key'] = customSuno.trim()
+    if (customReplicate && customReplicate.trim()) headers['X-Replicate-Token'] = customReplicate.trim()
+  }
+
   const response = await fetch(endpoint, {
     method: 'POST',
+    headers,
     body: formData,
   })
 

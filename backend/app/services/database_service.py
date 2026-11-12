@@ -17,6 +17,7 @@ async def save_track_metadata(
     vocals_url: str,
     instrumental_url: str,
     lyrics: Optional[str] = None,
+    price_tag: Optional[str] = None,
     bpm: Optional[int] = None,
     musical_key: Optional[str] = None,
     drums_url: Optional[str] = None,
@@ -38,6 +39,8 @@ async def save_track_metadata(
     # Add optional V2 fields if present
     if lyrics:
         record["lyrics"] = lyrics
+    if price_tag:
+        record["price_tag"] = price_tag
     if bpm is not None:
         record["bpm"] = bpm
     if musical_key:

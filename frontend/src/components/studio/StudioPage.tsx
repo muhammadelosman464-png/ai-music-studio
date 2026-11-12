@@ -46,6 +46,7 @@ export default function StudioPage() {
   // Production Inputs
   const [prompt, setPrompt] = useState('Modern Levantine Arabic pop, punchy dabke electronic percussion, buzuq lead, energetic rhythm, radio master')
   const [lyrics, setLyrics] = useState('')
+  const [priceTag, setPriceTag] = useState('49$ ترخيص تجاري')
   const [mastering, setMastering] = useState(true)
   const [voiceModel, setVoiceModel] = useState('Squidward')
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
@@ -58,6 +59,8 @@ export default function StudioPage() {
   // Backend settings modal
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [backendUrlInput, setBackendUrlInput] = useState('')
+  const [customSunoKey, setCustomSunoKey] = useState('')
+  const [customReplicateKey, setCustomReplicateKey] = useState('')
   const [connStatus, setConnStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   const [connMessage, setConnMessage] = useState('')
 
@@ -70,6 +73,12 @@ export default function StudioPage() {
     if (savedLocale === 'en' || savedLocale === 'ar') {
       setLocale(savedLocale)
     }
+    const savedSuno = localStorage.getItem('studio_suno_key') || ''
+    const savedRep = localStorage.getItem('studio_replicate_token') || ''
+    const savedPrice = localStorage.getItem('studio_price_tag')
+    if (savedSuno) setCustomSunoKey(savedSuno)
+    if (savedRep) setCustomReplicateKey(savedRep)
+    if (savedPrice) setPriceTag(savedPrice)
   }, [])
 
   const toggleLanguage = () => {
@@ -109,6 +118,16 @@ export default function StudioPage() {
 
   const handleSaveBackendUrl = () => {
     setBackendUrl(backendUrlInput)
+    if (customSunoKey.trim()) {
+      localStorage.setItem('studio_suno_key', customSunoKey.trim())
+    } else {
+      localStorage.removeItem('studio_suno_key')
+    }
+    if (customReplicateKey.trim()) {
+      localStorage.setItem('studio_replicate_token', customReplicateKey.trim())
+    } else {
+      localStorage.removeItem('studio_replicate_token')
+    }
     setIsSettingsOpen(false)
   }
 
@@ -125,7 +144,8 @@ export default function StudioPage() {
         prompt.trim() || 'Modern Arabic Pop with orchestral strings',
         lyrics,
         mastering,
-        voiceModel
+        voiceModel,
+        priceTag
       )
       setResult(trackResult)
       setCurrentStep(4)
@@ -346,12 +366,17 @@ export default function StudioPage() {
                   locale={locale}
                 />
 
-                {/* Prompt, Lyrics, Oriental Presets & Mastering (Features 2, 4, 7, 5) */}
+                {/* Prompt, Lyrics, Presets, Pricing & Mastering */}
                 <PromptInput
                   value={prompt}
                   onChange={setPrompt}
                   lyrics={lyrics}
                   onLyricsChange={setLyrics}
+                  priceTag={priceTag}
+                  onPriceTagChange={(val) => {
+                    setPriceTag(val)
+                    if (typeof window !== 'undefined') localStorage.setItem('studio_price_tag', val)
+                  }}
                   mastering={mastering}
                   onMasteringChange={setMastering}
                   voiceModel={voiceModel}
@@ -450,6 +475,34 @@ export default function StudioPage() {
                   onChange={(e) => setBackendUrlInput(e.target.value)}
                   placeholder="https://ai-music-studio-backend.onrender.com"
                   className="w-full px-3.5 py-2.5 text-sm bg-black/50 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-gold font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gold/80 mb-1 flex items-center justify-between">
+                  <span>{locale === 'ar' ? 'مفتاح Suno API السري (كلمة السر الخاصة):' : 'Custom Suno API Secret Key:'}</span>
+                  <span className="text-[10px] text-white/30">{locale === 'ar' ? 'اختياري' : 'Optional'}</span>
+                </label>
+                <input
+                  type="password"
+                  value={customSunoKey}
+                  onChange={(e) => setCustomSunoKey(e.target.value)}
+                  placeholder="Bearer ..."
+                  className="w-full px-3.5 py-2.5 text-xs bg-black/50 border border-gold/30 rounded-xl text-gold placeholder-white/20 focus:outline-none focus:border-gold font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-white/70 mb-1 flex items-center justify-between">
+                  <span>{locale === 'ar' ? 'مفتاح Replicate Token السري:' : 'Custom Replicate API Token:'}</span>
+                  <span className="text-[10px] text-white/30">{locale === 'ar' ? 'اختياري' : 'Optional'}</span>
+                </label>
+                <input
+                  type="password"
+                  value={customReplicateKey}
+                  onChange={(e) => setCustomReplicateKey(e.target.value)}
+                  placeholder="r8_..."
+                  className="w-full px-3.5 py-2.5 text-xs bg-black/50 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-gold font-mono"
                 />
               </div>
 

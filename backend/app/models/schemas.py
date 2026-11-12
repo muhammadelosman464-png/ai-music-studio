@@ -13,6 +13,7 @@ class ProduceResponse(BaseModel):
     bass_url: Optional[str] = None
     prompt: str
     lyrics: Optional[str] = None
+    price_tag: Optional[str] = None
     bpm: Optional[int] = None
     musical_key: Optional[str] = None
     mastered: bool = True
@@ -51,6 +52,7 @@ class TrackHistoryItem(BaseModel):
     id: str
     prompt: str
     lyrics: Optional[str] = None
+    price_tag: Optional[str] = None
     raw_audio_url: Optional[str] = None
     full_track_url: Optional[str] = None
     vocals_url: Optional[str] = None

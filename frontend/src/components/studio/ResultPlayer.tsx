@@ -153,6 +153,13 @@ export default function ResultPlayer({ result, locale }: ResultPlayerProps) {
 
         {/* Acoustic Badges & ZIP Export */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {result.price_tag && (
+            <div className="px-3 py-1.5 rounded-xl bg-gold/15 border border-gold/40 text-xs text-gold font-bold flex items-center gap-1.5 shadow-md shadow-gold/10">
+              <span>🏷️</span>
+              <span>{result.price_tag}</span>
+            </div>
+          )}
+
           {result.bpm && (
             <div className="px-3 py-1.5 rounded-xl bg-black/50 border border-white/10 text-xs text-white/80 flex items-center gap-1.5 font-mono">
               <Disc3 className="w-3.5 h-3.5 text-gold animate-spin-slow" />

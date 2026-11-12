@@ -54,6 +54,16 @@ export const translations = {
     lyricsSubtitle: 'Provide original lyrics for vocal melody phrasing',
     lyricsPlaceholder: 'Paste your verses and chorus here...\n[Verse 1]\nيا ليل يا عيني...\n[Chorus]\n...',
 
+    // Pricing & License
+    pricingTitle: 'Track Pricing & Commercial License',
+    pricingSubtitle: 'Set custom price tags, licensing terms, or price words for your song',
+    pricingPlaceholder: "e.g. '$49 Commercial License' or '150 SAR - Full Rights' or 'Free Non-Profit'",
+    pricingPreset1: '$29 Standard',
+    pricingPreset2: '$99 Commercial',
+    pricingPreset3: '$299 Exclusive',
+    pricingPreset4: 'Free / Non-Profit',
+    priceTagLabel: 'Price Tag',
+
     // Studio Toggles
     masteringToggle: 'AI Studio Mastering',
     masteringDesc: 'Apply multiband analog saturation, stereo widening, and -14 LUFS loudness',
@@ -178,6 +188,16 @@ export const translations = {
     lyricsTitle: 'كلمات الأغنية (اختياري)',
     lyricsSubtitle: 'أدخل كلماتك المخصصة لتوجيه اللحن والتأليف الغنائي',
     lyricsPlaceholder: 'الصق كلمات الأغنية هنا (المذهب، الكوبليهات)...\n[مذهب]\nيا ليل يا عين...\n[كوبليه]\nحبيبي اللي غاب...',
+
+    // Pricing & License
+    pricingTitle: 'كلمات وتفاصيل السعر والترخيص التجاري',
+    pricingSubtitle: 'اكتب كلمات السعر الخاصة بك، وشروط الترخيص أو قيمة بيع العمل الموسيقي',
+    pricingPlaceholder: "مثال: '49$ ترخيص تجاري' أو '150 ريال سعودي شامل الحقوق' أو 'مجاني للاستخدام غير الربحي'",
+    pricingPreset1: '29$ ترخيص قياسي',
+    pricingPreset2: '99$ ترخيص تجاري',
+    pricingPreset3: '299$ ملكية حصرية',
+    pricingPreset4: 'مجاني / غير ربحي',
+    priceTagLabel: 'سعر العمل',
 
     // Studio Toggles
     masteringToggle: 'ماسترينغ احترافي (AI Mastering)',
